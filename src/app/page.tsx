@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 
 const BREED_DATABASE: Record<string, { label: string; species: "dog" | "cat"; maleWeight: number; femaleWeight: number; size: "small" | "medium" | "large" }> = {
-  malinois: { label: "Belgian Malinois", species: "dog", maleWeight: 28, femaleWeight: 22 },
-  griffon: { label: "Griffon", species: "dog", maleWeight: 8, femaleWeight: 7 },
+  malinois: { label: "Belgian Malinois", species: "dog", maleWeight: 28, femaleWeight: 22, size: "large" },
+  griffon: { label: "Griffon", species: "dog", maleWeight: 8, femaleWeight: 7, size: "small" },
   g_shepherd: { label: "German Shepherd", species: "dog", maleWeight: 36, femaleWeight: 28, size: "large" },
   golden_r: { label: "Golden Retriever", species: "dog", maleWeight: 32, femaleWeight: 27, size: "large" },
   rottweiler: { label: "Rottweiler", species: "dog", maleWeight: 50, femaleWeight: 40, size: "large" },
