@@ -5,11 +5,7 @@ export const metadata = {
   description: "Clinical Veterinary Formulation Layer",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className="bg-slate-950 antialiased">{children}</body>
