@@ -1,8 +1,8 @@
-import React from 'react';
+import "./globals.css";
 
 export const metadata = {
-  title: 'Pet Nutrition Engine',
-  description: 'Clinical Pet Nutrition Engine for dogs and cats',
+  title: "FEDIAF Pet Nutrition Engine",
+  description: "Clinical Veterinary Formulation Layer",
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="bg-slate-950 antialiased">{children}</body>
     </html>
   );
 }
