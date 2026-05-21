@@ -2,13 +2,32 @@
 
 import React from "react";
 
+// Official Breed Profiles with FEDIAF Aligned Target Adult Weights (in kg)
+const BREED_DATABASE: Record<string, { label: string; species: "dog" | "cat"; maleWeight: number; femaleWeight: number; size: "small" | "medium" | "large" }> = {
+  g_shepherd: { label: "German Shepherd", species: "dog", maleWeight: 36, femaleWeight: 28, size: "large" },
+  golden_r: { label: "Golden Retriever", species: "dog", maleWeight: 32, femaleWeight: 27, size: "large" },
+  rottweiler: { label: "Rottweiler", species: "dog", maleWeight: 50, femaleWeight: 40, size: "large" },
+  french_bd: { label: "French Bulldog", species: "dog", maleWeight: 12, femaleWeight: 10, size: "medium" },
+  poodle_std: { label: "Standard Poodle", species: "dog", maleWeight: 26, femaleWeight: 22, size: "large" },
+  poodle_toy: { label: "Toy Poodle", species: "dog", maleWeight: 4, femaleWeight: 3.5, size: "small" },
+  pug: { label: "Pug", species: "dog", maleWeight: 8, femaleWeight: 7, size: "small" },
+  chihuahua: { label: "Chihuahua", species: "dog", maleWeight: 2.5, femaleWeight: 2, size: "small" },
+  pitbull: { label: "American Pit Bull", species: "dog", maleWeight: 24, femaleWeight: 19, size: "medium" },
+  // Cats
+  maine_coon: { label: "Maine Coon Cat", species: "cat", maleWeight: 8, femaleWeight: 5.5, size: "large" },
+  persian: { label: "Persian Cat", species: "cat", maleWeight: 5, femaleWeight: 4, size: "medium" },
+  siamese: { label: "Siamese Cat", species: "cat", maleWeight: 4.5, femaleWeight: 3.5, size: "small" },
+  domestic_sh: { label: "Domestic Shorthair", species: "cat", maleWeight: 5, femaleWeight: 4, size: "medium" }
+};
+
 export default function PetNutritionWebsite() {
   const [form, setForm] = React.useState({ 
     name: "", 
-    species: "dog", 
+    species: "dog",
+    breedKey: "g_shepherd",
+    gender: "male", // male, female
+    reproductionStatus: "normal", // normal, pregnant, lactating
     ageStage: "adult", // adult, puppy_young, puppy_older, kitten_young, kitten_mid, kitten_older
-    dogSize: "medium", // small (<10kg), medium (10-25kg), large (>25kg)
-    weight: 20, 
     activity: "normal", 
     disease: "none", 
     selectedIngredients: ["chicken", "rice", "oil"] 
@@ -18,54 +37,70 @@ export default function PetNutritionWebsite() {
   const [recipe, setRecipe] = React.useState<any>(null);
   const [totals, setTotals] = React.useState<any>({ protein: 0, fat: 0, p: 0, ca: 0 });
 
-  // ========================= // FEDIAF official energy requirement equations
+  // Dynamically extract weight based on Breed database and Selected Gender
+  const getDynamicWeight = () => {
+    const breed = BREED_DATABASE[form.breedKey];
+    if (!breed) return 20;
+    return form.gender === "male" ? breed.maleWeight : breed.femaleWeight;
+  };
+
   const calculateFEDIAF_MER = () => {
-    const weight = Number(form.weight) || 1;
+    const weight = getDynamicWeight();
+    const breed = BREED_DATABASE[form.breedKey] || { size: "medium" };
+    let baseEnergy = 0;
     
-    // Adult Felines
-    if (form.species === "cat" && form.ageStage === "adult") {
-      const factors: Record<string, number> = { low: 75, normal: 100, active: 140 };
-      const baseFactor = factors[form.activity] || 100;
-      return baseFactor * Math.pow(weight, 0.67);
-    }
-    
-    // Growing Kittens
-    if (form.species === "cat" && form.ageStage !== "adult") {
-      if (form.ageStage === "kitten_young") return 250 * Math.pow(weight, 0.67); 
-      if (form.ageStage === "kitten_mid") return 175 * Math.pow(weight, 0.67);   
-      if (form.ageStage === "kitten_older") return 100 * Math.pow(weight, 0.67); 
-    }
-
-    // Adult Canines
-    if (form.species === "dog" && form.ageStage === "adult") {
-      const factors: Record<string, number> = { low: 95, normal: 110, active: 130, working: 210 };
-      const baseFactor = factors[form.activity] || 110;
-      return baseFactor * Math.pow(weight, 0.75);
-    }
-
-    // Growing Puppies (FEDIAF Target Curve Adaptation)
-    if (form.species === "dog" && form.ageStage !== "adult") {
-      let growthFactor = 130; // default for 3-12 months
-      if (form.ageStage === "puppy_young") {
-        growthFactor = form.dogSize === "large" ? 190 : 175; // Large breeds need precise early curve energy adjustments
-      } else if (form.ageStage === "puppy_older" && form.dogSize === "large") {
-        growthFactor = 140; 
+    // 1. Feline Energy Calculations
+    if (form.species === "cat") {
+      if (form.ageStage === "adult") {
+        const factors: Record<string, number> = { low: 75, normal: 100, active: 140 };
+        baseEnergy = (factors[form.activity] || 100) * Math.pow(weight, 0.67);
+      } else {
+        if (form.ageStage === "kitten_young") baseEnergy = 250 * Math.pow(weight, 0.67); 
+        else if (form.ageStage === "kitten_mid") baseEnergy = 175 * Math.pow(weight, 0.67);   
+        else baseEnergy = 100 * Math.pow(weight, 0.67); 
       }
-      return growthFactor * Math.pow(weight, 0.75);
+
+      // Feline Reproduction Enhancements (FEDIAF Guidelines)
+      if (form.gender === "female") {
+        if (form.reproductionStatus === "pregnant") baseEnergy *= 1.40; // Gestation scaling
+        if (form.reproductionStatus === "lactating") baseEnergy *= 2.80; // Heavy lactation drain
+      }
+      return baseEnergy;
+    }
+    
+    // 2. Canine Energy Calculations
+    if (form.species === "dog") {
+      if (form.ageStage === "adult") {
+        const factors: Record<string, number> = { low: 95, normal: 110, active: 130, working: 210 };
+        baseEnergy = (factors[form.activity] || 110) * Math.pow(weight, 0.75);
+      } else {
+        let growthFactor = 130; 
+        if (form.ageStage === "puppy_young") {
+          growthFactor = breed.size === "large" ? 190 : 175; 
+        } else if (form.ageStage === "puppy_older" && breed.size === "large") {
+          growthFactor = 140; 
+        }
+        baseEnergy = growthFactor * Math.pow(weight, 0.75);
+      }
+
+      // Canine Reproduction Enhancements (FEDIAF Guidelines)
+      if (form.gender === "female") {
+        if (form.reproductionStatus === "pregnant") baseEnergy *= 1.50; 
+        if (form.reproductionStatus === "lactating") baseEnergy *= 3.00; // Peak milk production
+      }
+      return baseEnergy;
     }
 
     return 110 * Math.pow(weight, 0.75);
   };
 
-  // Veterinary Pathological Modification Profiles
   const diseaseRules: Record<string, any> = { 
     none: { protein: 1, fat: 1, p: 1, ca: 1 }, 
-    kidney: { protein: 0.80, fat: 1.20, p: 0.50, ca: 0.9 }, // High restriction on Phosphorus for CKD management
-    obesity: { protein: 1.20, fat: 0.60, p: 1, ca: 1 },    // Low fat, high dense protein targeting fat loss
+    kidney: { protein: 0.80, fat: 1.20, p: 0.50, ca: 0.9 }, 
+    obesity: { protein: 1.20, fat: 0.60, p: 1, ca: 1 },    
     hepatic: { protein: 0.85, fat: 0.85, p: 0.9, ca: 1 }, 
   };
 
-  // Nutrient Profiles (FEDIAF Wet / Dry Base Extrapolations)
   const ingredients = { 
     chicken: { label: "🍗 Chicken Breast", protein: 31, fat: 3.6, kcal: 165, p: 0.18, ca: 0.012 }, 
     beef: { label: "🥩 Lean Beef", protein: 26, fat: 15, kcal: 250, p: 0.2, ca: 0.01 }, 
@@ -83,22 +118,21 @@ export default function PetNutritionWebsite() {
 
   const ingredientKeys = Object.keys(ingredients);
 
-  // Exact FEDIAF Minimum Growth vs Maintenance Requirements
   const getNutrientTargets = () => {
+    const breed = BREED_DATABASE[form.breedKey] || { size: "medium" };
+    
+    // Intense protein/fat density for reproduction or early structural growth
+    const isDemandingState = form.reproductionStatus !== "normal" || form.ageStage !== "adult";
+
     if (form.species === "cat") {
-      return form.ageStage === "adult" 
-        ? { protein: 50, fat: 18, p: 0.8, ca: 1.0 } 
-        : { protein: 70, fat: 22, p: 1.1, ca: 1.4 }; // Dense profile for kittens
+      return isDemandingState
+        ? { protein: 72, fat: 24, p: 1.15, ca: 1.45 }
+        : { protein: 50, fat: 18, p: 0.8, ca: 1.0 };
     } else {
-      if (form.ageStage === "adult") return { protein: 35, fat: 11, p: 0.6, ca: 0.8 };
-      
-      // Puppy Breed Size Scaling Logic based on FEDIAF safe guidelines for skeletal safety
-      if (form.dogSize === "large") {
-        return { protein: 58, fat: 16, p: 0.85, ca: 1.1 }; // Low, strict Calcium to prevent Hip Dysplasia
-      } else if (form.dogSize === "small") {
-        return { protein: 52, fat: 15, p: 0.80, ca: 1.2 }; // Small breeds tolerate more dense ratios safely
-      }
-      return { protein: 54, fat: 15, p: 0.82, ca: 1.15 };
+      if (!isDemandingState) return { protein: 35, fat: 11, p: 0.6, ca: 0.8 };
+      if (breed.size === "large") return { protein: 60, fat: 17, p: 0.85, ca: 1.1 };
+      if (breed.size === "small") return { protein: 54, fat: 16, p: 0.80, ca: 1.2 };
+      return { protein: 56, fat: 15, p: 0.82, ca: 1.15 };
     }
   };
 
@@ -106,7 +140,6 @@ export default function PetNutritionWebsite() {
     const mer = calculateFEDIAF_MER();
     const target = getNutrientTargets();
     const rule = diseaseRules[form.disease] || diseaseRules.none;
-    
     const base = mer / form.selectedIngredients.length || mer; 
     let optimized: Record<string, number> = {}; 
     
@@ -114,7 +147,6 @@ export default function PetNutritionWebsite() {
       optimized[ing] = base / ((ingredients as any)[ing].kcal / 100); 
     }); 
 
-    // Dynamic linear allocation passes
     for (let i = 0; i < 7; i++) { 
       let protein = 0; let fat = 0; let p = 0; 
       Object.keys(optimized).forEach((ing) => { 
@@ -151,181 +183,199 @@ export default function PetNutritionWebsite() {
     }); 
   };
 
+  // Filter breeds matching active species
+  const activeBreeds = Object.entries(BREED_DATABASE).filter(([_, b]) => b.species === form.species);
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8 flex items-center justify-center font-sans print:bg-white print:text-black">
-      <div className="w-full max-w-6xl bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700/80 grid grid-cols-1 md:grid-cols-2 print:border-none print:shadow-none">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 flex items-center justify-center font-sans">
+      <div className="w-full max-w-6xl bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
         
-        {/* LEFT PANEL: Results and Analytical Output */}
-        <div className="p-6 md:p-8 bg-gradient-to-br from-slate-800 to-slate-850 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-700 print:p-0">
+        {/* LEFT COMPONENT: Output Metrics */}
+        <div className="p-6 md:p-8 bg-slate-900 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-3xl">🐾</span>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent print:text-black">
+              <span className="text-3xl">🔬</span>
+              <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
                 FEDIAF Clinical Formulation
               </h1>
             </div>
-            <p className="text-slate-400 text-xs mb-6 print:hidden">
-              Advanced veterinary engine calculating precise biological targets and metabolic requirements.
+            <p className="text-slate-500 text-xs mb-6">
+              Precision clinical nutrition engine tracking real breed dynamics and physiological targets.
             </p>
 
             {!result && (
-              <div className="border border-dashed border-slate-700 rounded-2xl p-12 text-center text-slate-500 mt-8 bg-slate-900/20">
+              <div className="border border-dashed border-slate-800 rounded-2xl p-12 text-center text-slate-500 mt-8 bg-slate-950/40">
                 <span className="text-5xl block mb-4">📊</span>
-                Configure the biological metrics on the right panel and run the <span className="text-emerald-400 font-semibold">Optimization Engine</span> to extract scientific targets.
+                Configure pet profile metrics and execute engine to compile formulation targets.
               </div>
             )}
 
             {result && (
               <div className="space-y-5 mt-2 animate-fadeIn">
-                {/* Daily Energy & Fluids Metrics */}
-                <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/60 print:border-black">
-                  <h3 className="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3 print:text-black">
+                {/* Energy & Fluid Targets */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                  <h3 className="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3">
                     ⚡ Daily Metabolic Thresholds {form.name ? `for "${form.name}"` : ''}
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-800 p-3 rounded-xl border border-emerald-500/20 print:bg-gray-100">
+                    <div className="bg-slate-900 p-3 rounded-xl border border-emerald-500/10">
                       <span className="text-[10px] uppercase tracking-wider text-emerald-400 block font-semibold mb-0.5">Energy Target (MER)</span>
-                      <span className="text-xl font-bold text-emerald-400 print:text-black">{result.mer.toFixed(0)} <span className="text-xs font-normal text-slate-400">kcal</span></span>
+                      <span className="text-xl font-bold text-emerald-400">{result.mer.toFixed(0)} <span className="text-xs font-normal text-slate-500">kcal</span></span>
                     </div>
-                    <div className="bg-slate-800 p-3 rounded-xl border border-teal-500/20 print:bg-gray-100">
+                    <div className="bg-slate-900 p-3 rounded-xl border border-teal-500/10">
                       <span className="text-[10px] uppercase tracking-wider text-teal-400 block font-semibold mb-0.5">Fluid Requirement</span>
-                      <span className="text-xl font-bold text-teal-400 print:text-black">{result.water.toFixed(0)} <span className="text-xs font-normal text-slate-400">ml</span></span>
+                      <span className="text-xl font-bold text-teal-400">{result.water.toFixed(0)} <span className="text-xs font-normal text-slate-500">ml</span></span>
                     </div>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-2 text-center font-mono">
+                    Calculated Weight Reference: <span className="text-teal-400 font-bold">{getDynamicWeight()} kg</span> based on breed standard.
                   </div>
                 </div>
 
-                {/* Main Recipe Output Component */}
-                <div className="bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/20 print:border-black">
+                {/* Main Recipe Raw Grams */}
+                <div className="bg-emerald-950/10 p-4 rounded-xl border border-emerald-500/10">
                   <h3 className="text-xs uppercase tracking-wider text-emerald-400 font-bold mb-3">
-                    🥗 Daily Recipe Formula Composition
+                    🥗 Daily Recipe Formula Composition (Raw Weights)
                   </h3>
                   <div className="space-y-2">
                     {Object.entries(recipe).map(([k, v]) => (
-                      <div key={k} className="flex justify-between items-center bg-slate-900/50 px-4 py-2.5 rounded-xl border border-slate-800/80">
-                        <span className="font-medium text-slate-300 text-sm print:text-black">{(ingredients as any)[k]?.label || k}</span>
-                        <span className="font-mono font-bold text-emerald-400 text-sm print:text-black">{(v as number).toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></span>
+                      <div key={k} className="flex justify-between items-center bg-slate-950/60 px-4 py-2.5 rounded-xl border border-slate-900">
+                        <span className="font-medium text-slate-300 text-sm">{(ingredients as any)[k]?.label || k}</span>
+                        <span className="font-mono font-bold text-emerald-400 text-sm">{(v as number).toFixed(1)} <span className="text-xs font-normal text-slate-500">g</span></span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Analytical Breakdown Module */}
+                {/* Analytical Pool */}
                 <div>
                   <h3 className="text-xs uppercase tracking-wider text-slate-400 font-bold mb-2.5">
                     🧪 Chemical Matrix Breakdown (Analytical Pool)
                   </h3>
                   <div className="grid grid-cols-4 gap-2">
-                    <div className="bg-blue-950/30 border border-blue-500/20 p-3 rounded-xl text-center">
+                    <div className="bg-blue-950/20 border border-blue-500/20 p-3 rounded-xl text-center">
                       <span className="block text-[10px] font-bold text-blue-400 uppercase mb-1">Protein</span>
                       <span className="text-base font-black text-blue-200">{totals.protein.toFixed(1)}g</span>
                     </div>
-                    <div className="bg-amber-950/30 border border-amber-500/20 p-3 rounded-xl text-center">
+                    <div className="bg-amber-950/20 border border-amber-500/20 p-3 rounded-xl text-center">
                       <span className="block text-[10px] font-bold text-amber-400 uppercase mb-1">Fat</span>
                       <span className="text-base font-black text-amber-200">{totals.fat.toFixed(1)}g</span>
                     </div>
-                    <div className="bg-purple-950/30 border border-purple-500/20 p-3 rounded-xl text-center">
+                    <div className="bg-purple-950/20 border border-purple-500/20 p-3 rounded-xl text-center">
                       <span className="block text-[10px] font-bold text-purple-400 uppercase mb-1">Phos (P)</span>
                       <span className="text-base font-black text-purple-200">{totals.p.toFixed(2)}g</span>
                     </div>
-                    <div className="bg-teal-950/30 border border-teal-500/20 p-3 rounded-xl text-center">
+                    <div className="bg-teal-950/20 border border-teal-500/20 p-3 rounded-xl text-center">
                       <span className="block text-[10px] font-bold text-teal-400 uppercase mb-1">Calc (Ca)</span>
                       <span className="text-base font-black text-teal-200">{totals.ca.toFixed(2)}g</span>
                     </div>
                   </div>
                 </div>
-
               </div>
             )}
           </div>
           
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700/50 print:hidden">
-            <span className="text-[11px] text-slate-500 tracking-wide">
-              Compliance Schema: <span className="text-slate-400 font-medium font-mono">FEDIAF Clinical Standard</span>
-            </span>
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-800">
+            <span className="text-[11px] text-slate-500 tracking-wide font-mono">FEDIAF Physiological Standard</span>
             {result && (
-              <button onClick={() => window.print()} className="text-xs bg-slate-700 hover:bg-slate-600 font-medium text-slate-200 px-3 py-2 rounded-lg transition-colors shadow">
-                🖨️ Export PDF / Print
+              <button onClick={() => window.print()} className="text-xs bg-slate-800 hover:bg-slate-700 font-semibold text-slate-200 px-3 py-2 rounded-lg transition-colors">
+                Export / Print Document
               </button>
             )}
           </div>
         </div>
 
-        {/* RIGHT PANEL: Biological and Veterinary Inputs */}
-        <div className="p-6 md:p-8 space-y-4 bg-slate-900/20 print:hidden">
-          <h2 className="text-base font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-2">
+        {/* RIGHT PANEL: Dynamic Forms */}
+        <div className="p-6 md:p-8 space-y-4 bg-slate-950/10">
+          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
             ⚙️ Biological Parameter Profiler
           </h2>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Pet Name</label>
-              <input className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="e.g., Max" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Pet Name</label>
+              <input className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="e.g., Max" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Species Type</label>
-              <select className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none" value={form.species} onChange={(e) => setForm({ ...form, species: e.target.value, ageStage: "adult" })}>
-                <option value="dog">🐶 Canine (Dog)</option>
-                <option value="cat">🐱 Feline (Cat)</option>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Species Type</label>
+              <select className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:outline-none" value={form.species} onChange={(e) => {
+                const newSpecies = e.target.value;
+                const firstBreed = Object.keys(BREED_DATABASE).find(k => BREED_DATABASE[k].species === newSpecies) || "";
+                setForm({ ...form, species: newSpecies, breedKey: firstBreed, ageStage: "adult" });
+              }}>
+                <option value="dog"> Canines (Dogs)</option>
+                <option value="cat"> Felines (Cats)</option>
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Current Weight (kg)</label>
-              <input type="number" className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none" value={form.weight || ''} onChange={(e) => setForm({ ...form, weight: Number(e.target.value) })} />
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Select Breed</label>
+              <select className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:outline-none" value={form.breedKey} onChange={(e) => setForm({ ...form, breedKey: e.target.value })}>
+                {activeBreeds.map(([key, breed]) => (
+                  <option key={key} value={key}>{breed.label}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Biological Age Group</label>
-              <select className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none" value={form.ageStage} onChange={(e) => setForm({ ...form, ageStage: e.target.value })}>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Biological Age Group</label>
+              <select className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:outline-none" value={form.ageStage} onChange={(e) => setForm({ ...form, ageStage: e.target.value })}>
                 <option value="adult">🐕 Adult Maintenance</option>
-                {form.species === "dog" && <option value="puppy_young">🍼 Puppy (Early Growth &lt; 3mo)</option>}
-                {form.species === "dog" && <option value="puppy_older">🦴 Puppy (Late Growth 3-12mo)</option>}
-                {form.species === "cat" && <option value="kitten_young">🍼 Kitten (Early Growth &lt; 4mo)</option>}
-                {form.species === "cat" && <option value="kitten_mid">🐈 Kitten (Active Growth 4-9mo)</option>}
-                {form.species === "cat" && <option value="kitten_older">🐈 Kitten (Late Growth 9-12mo)</option>}
+                {form.species === "dog" && <option value="puppy_young">🍼 Puppy (Early &lt; 3mo)</option>}
+                {form.species === "dog" && <option value="puppy_older">🦴 Puppy (Late 3-12mo)</option>}
+                {form.species === "cat" && <option value="kitten_young">🍼 Kitten (Early &lt; 4mo)</option>}
+                {form.species === "cat" && <option value="kitten_mid">🐈 Kitten (Active 4-9mo)</option>}
+                {form.species === "cat" && <option value="kitten_older">🐈 Kitten (Late 9-12mo)</option>}
               </select>
             </div>
           </div>
 
-          {/* Core FEDIAF Breed size inclusion criteria for growth safety */}
-          {form.species === "dog" && form.ageStage !== "adult" && (
-            <div className="bg-slate-900/40 p-3 rounded-xl border border-slate-800 animate-fadeIn">
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Expected Adult Breed Size (Skeletal Rule)</label>
-              <select className="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-xs focus:outline-none" value={form.dogSize} onChange={(e) => setForm({ ...form, dogSize: e.target.value })}>
-                <option value="small">Small Breed (Expected Adult Weight &lt; 10 kg)</option>
-                <option value="medium">Medium Breed (Expected Adult Weight 10 - 25 kg)</option>
-                <option value="large">Large / Giant Breed (Expected Adult Weight &gt; 25 kg)</option>
+          {/* New Gender and Hormonal/Reproductive Options */}
+          <div className="grid grid-cols-2 gap-3 bg-slate-950/40 p-3 rounded-xl border border-slate-850">
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Gender</label>
+              <select className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value, reproductionStatus: "normal" })}>
+                <option value="male">♂️ Male</option>
+                <option value="female">♀️ Female</option>
               </select>
             </div>
-          )}
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Physiological Status</label>
+              <select className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none" value={form.reproductionStatus} onChange={(e) => setForm({ ...form, reproductionStatus: e.target.value })} disabled={form.gender !== "female" || form.ageStage !== "adult"}>
+                <option value="normal">Standard / Neutered</option>
+                <option value="pregnant">🤰 Pregnant (Gestation)</option>
+                <option value="lactating">🥛 Lactating (Nursing)</option>
+              </select>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Activity Tier</label>
-              <select className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none" value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })} disabled={form.ageStage !== "adult"}>
-                <option value="low">Sedentary / Neutered</option>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Activity Tier</label>
+              <select className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:outline-none" value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })} disabled={form.ageStage !== "adult" || form.reproductionStatus !== "normal"}>
+                <option value="low">Sedentary / Sterilized</option>
                 <option value="normal">Normal Activity</option>
                 <option value="active">High Active</option>
-                {form.species === "dog" && <option value="working">Working / Sporting Dog</option>}
+                {form.species === "dog" && <option value="working">Working Dog</option>}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Pathology Adjustment</label>
-              <select className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:outline-none" value={form.disease} onChange={(e) => setForm({ ...form, disease: e.target.value })}>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Pathology Adjustment</label>
+              <select className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:outline-none" value={form.disease} onChange={(e) => setForm({ ...form, disease: e.target.value })}>
                 <option value="none">🌿 Healthy Maintenance</option>
-                <option value="kidney">🏥 Renal Failure (Low Phosphorus)</option>
-                <option value="obesity">⚖️ Obesity Management (Hypocaloric)</option>
-                <option value="hepatic">🧬 Hepatic Metabolic Diet</option>
+                <option value="kidney">🏥 Renal Failure (Low P)</option>
+                <option value="obesity">⚖️ Obesity (Hypocaloric)</option>
+                <option value="hepatic">🧬 Hepatic Metabolic</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-400 uppercase block mb-2">Available Ingredient Formulation Pool</label>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 scrollbar">
+            <label className="text-[11px] font-bold text-slate-400 uppercase block mb-2">Available Ingredient Formulation Pool</label>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
               {ingredientKeys.map((ing) => (
-                <button key={ing} type="button" onClick={() => toggleIngredient(ing)} className={`p-2.5 border rounded-xl text-xs font-semibold transition-all flex items-center justify-between ${form.selectedIngredients.includes(ing) ? "bg-emerald-600/20 border-emerald-500 text-emerald-400 font-bold" : "bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600"}`}>
+                <button key={ing} type="button" onClick={() => toggleIngredient(ing)} className={`p-2 border rounded-xl text-xs font-semibold transition-all flex items-center justify-between ${form.selectedIngredients.includes(ing) ? "bg-emerald-600/10 border-emerald-500 text-emerald-400" : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"}`}>
                   <span>{(ingredients as any)[ing].label}</span>
                   {form.selectedIngredients.includes(ing) && <span className="text-[10px]">✅</span>}
                 </button>
@@ -333,7 +383,7 @@ export default function PetNutritionWebsite() {
             </div>
           </div>
 
-          <button type="button" onClick={handleCalculate} className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-900 font-black p-3.5 rounded-xl shadow-lg shadow-emerald-950/10 active:scale-[0.99] transition-all text-center uppercase tracking-wider text-xs mt-2">
+          <button type="button" onClick={handleCalculate} className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black p-3.5 rounded-xl shadow-lg transition-all text-center uppercase tracking-wider text-xs mt-2">
             🚀 Execute Optimization Engine
           </button>
         </div>
