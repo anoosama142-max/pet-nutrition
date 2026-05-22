@@ -71,8 +71,6 @@ export default function PetNutritionMaster() {
 
   const handleCalculate = () => {
     const mer = calculateFEDIAF();
-    
-    // 
     const diseaseRules: any = { 
       none: { protein: 1, fat: 1, p: 1, ca: 1 }, 
       kidney: { protein: 0.75, fat: 1.2, p: 0.45, ca: 0.9 }, 
@@ -81,14 +79,12 @@ export default function PetNutritionMaster() {
     
     const rule = diseaseRules[form.disease] || diseaseRules.none;
 
-    // 1. 
     const base = mer / form.selectedIngredients.length;
     let optimized: any = {};
     form.selectedIngredients.forEach((ing: string) => {
       optimized[ing] = base / (INGREDIENTS_DB[ing].kcal / 100);
     });
 
-    // 2.
     let tProt = 0, tFat = 0, tP = 0, tCa = 0;
     Object.entries(optimized).forEach(([ing, qty]: any) => {
       tProt += (INGREDIENTS_DB[ing].protein * qty) / 100;
@@ -97,11 +93,9 @@ export default function PetNutritionMaster() {
       tCa += (INGREDIENTS_DB[ing].ca * qty) / 100;
     });
 
-    // 3.
     const requiredEggshell = (tP > tCa) ? (tP - tCa) / 0.38 : 0;
 
-    // 4.
-    setResult({ mer, water: mer }); //
+    setResult({ mer, water: mer });
     setRecipe({ ...optimized, eggshell: requiredEggshell });
     setTotals({ 
       protein: tProt * rule.protein, 
@@ -109,31 +103,7 @@ export default function PetNutritionMaster() {
       p: tP * rule.p, 
       ca: (tCa + (requiredEggshell * 0.38)) * rule.ca 
     });
-
-  
-
-  
-
-    
-        // calculate final totals
-        let tProt = 0, tFat = 0, tP = 0, tCa = 0;
-        Object.entries(optimized).forEach(([ing, qty]: any) => {
-          tProt += (INGREDIENTS_DB[ing].protein * qty) / 100;
-          tFat += (INGREDIENTS_DB[ing].fat * qty) / 100;
-          tP += (INGREDIENTS_DB[ing].p * qty) / 100;
-          tCa += (INGREDIENTS_DB[ing].ca * qty) / 100;
-        });
-
-
-    
-        setResult({ mer, water: mer });
-        setRecipe({ ...optimized, eggshell: requiredEggshell });
-        setTotals({ 
-          protein: tProt * rule.protein, 
-          fat: tFat * rule.fat, 
-          p: tP * rule.p, 
-          ca: (tCa + (requiredEggshell * 0.38)) * rule.ca 
-        });
+  };
 
   const toggleIngredient = (ing: string) => {
     setForm(prev => ({
@@ -209,29 +179,6 @@ export default function PetNutritionMaster() {
                 ))}
               </div>
             </div>
-              <div className="mt-6 p-4 bg-slate-800 rounded-lg">
-  <h2 className="text-xl font-bold mb-4">Clinical Recipe (Grams)</h2>
-  
-  {Object.entries(recipe).map(([key, value]: any) => {
-    // 1. 
-    if (['protein', 'fat', 'p', 'ca'].includes(key)) return null;
-
-    // 2.
-    return (
-      <div key={key} className="flex justify-between py-2 px-4 my-1 bg-slate-800 rounded-md border border-slate-700">
-        <span className="text-sm font-medium">
-          {key === 'eggshell' ? 'Eggshell Powder' : (INGREDIENTS_DB[key]?.label || key)}
-        </span>
-        <span className="text-sm font-bold text-emerald-400">
-          {(value as number).toFixed(1)}g
-        </span>
-      </div>
-    );
-  })}
-</div>
-
-            
-            
 
             <button onClick={handleCalculate} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-2xl transition-all shadow-xl shadow-emerald-500/10 uppercase tracking-widest text-sm">
               🚀 Execute Formulation Engine
@@ -245,10 +192,9 @@ export default function PetNutritionMaster() {
             <div className="h-full flex flex-col items-center justify-center bg-slate-900/50 rounded-3xl border border-dashed border-slate-800 p-12 text-center">
               <span className="text-6xl mb-4">📊</span>
               <h2 className="text-xl font-bold text-slate-400">Waiting for Data...</h2>
-              <p className="text-slate-600 text-sm max-w-xs mt-2">Configure the profiler and execute the engine to generate clinical thresholds.</p>
             </div>
           ) : (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="space-y-6">
               {/* energy and nutrition Cards */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-emerald-500 p-6 rounded-3xl text-slate-950 shadow-lg shadow-emerald-500/20">
@@ -265,16 +211,20 @@ export default function PetNutritionMaster() {
               <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl">
                 <h3 className="text-xs font-black uppercase text-slate-500 mb-4 tracking-widest">🥗 Clinical Recipe (Grams)</h3>
                 <div className="space-y-3">
-                  {Object.entries(recipe).map(([k, v]: any) => (
+                  {Object.entries(recipe)
+                    .filter(([key]) => !['protein', 'fat', 'p', 'ca'].includes(key))
+                    .map(([k, v]: any) => (
                     <div key={k} className="flex justify-between items-center bg-slate-950 p-4 rounded-2xl border border-slate-800/50">
-                      <span className="font-bold text-slate-300">{INGREDIENTS_DB[k].label}</span>
-                      <span className="text-emerald-400 font-black font-mono">{v.toFixed(1)}g</span>
+                      <span className="font-bold text-slate-300">
+                        {k === 'eggshell' ? 'Eggshell Powder' : INGREDIENTS_DB[k]?.label}
+                      </span>
+                      <span className="text-emerald-400 font-black font-mono">{(v as number).toFixed(1)}g</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/*  ingredient details (minerals and protein) */}
+              {/* ingredient details (minerals and protein) */}
               <div className="grid grid-cols-4 gap-2">
                 <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800 text-center">
                   <span className="block text-[8px] font-black text-slate-500 uppercase">Protein</span>
@@ -303,4 +253,4 @@ export default function PetNutritionMaster() {
       </footer>
     </div>
   );
-}
+                  }
