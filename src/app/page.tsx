@@ -112,6 +112,7 @@ export default function PetNutritionMaster() {
 
   
 
+  
 
     
         // calculate final totals
@@ -123,9 +124,8 @@ export default function PetNutritionMaster() {
           tCa += (INGREDIENTS_DB[ing].ca * qty) / 100;
         });
 
-        // Calculate required Eggshell to balance Calcium
-        const requiredEggshell = (tP > tCa) ? (tP - tCa) / 0.38 : 0;
 
+    
         setResult({ mer, water: mer });
         setRecipe({ ...optimized, eggshell: requiredEggshell });
         setTotals({ 
@@ -209,6 +209,18 @@ export default function PetNutritionMaster() {
                 ))}
               </div>
             </div>
+              <div className="mt-6 p-4 bg-slate-800 rounded-lg">
+  <h2 className="text-xl font-bold mb-4">Clinical Recipe (Grams)</h2>
+  {Object.entries(recipe).map(([key, value]: any) => (
+    <<div key={key} className="flex justify-between py-2 px-4 my-1 bg-slate-800 rounded-md">
+      <span>
+        {key === 'eggshell' ? 'Eggshell Powder' : (INGREDIENTS_DB[key]?.label || key)}
+      </span>
+      <span>{(value as number).toFixed(1)}g</span>
+    </div>
+  ))}
+</div>
+            
 
             <button onClick={handleCalculate} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-2xl transition-all shadow-xl shadow-emerald-500/10 uppercase tracking-widest text-sm">
               🚀 Execute Formulation Engine
