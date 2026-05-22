@@ -212,19 +212,24 @@ export default function PetNutritionMaster() {
               <div className="mt-6 p-4 bg-slate-800 rounded-lg">
   <h2 className="text-xl font-bold mb-4">Clinical Recipe (Grams)</h2>
   
-  Object.entries(recipe)
-  .filter(([key]) => !['protein', 'fat', 'p', 'ca'].includes(key))
-  .map(([key, value]: any) => (
-    <div key={key} className="flex justify-between py-2 px-4 my-1 bg-slate-800 rounded-md border border-slate-700">
-      <span className="text-sm font-medium">
-        {key === 'eggshell' ? 'Eggshell Powder' : (INGREDIENTS_DB[key]?.label || key)}
-      </span>
-      <span className="text-sm font-bold text-emerald-400">
-        {(value as number).toFixed(1)}g
-      </span>
-    </div>
-  ))
+  {Object.entries(recipe).map(([key, value]: any) => {
+    // 1. 
+    if (['protein', 'fat', 'p', 'ca'].includes(key)) return null;
+
+    // 2.
+    return (
+      <div key={key} className="flex justify-between py-2 px-4 my-1 bg-slate-800 rounded-md border border-slate-700">
+        <span className="text-sm font-medium">
+          {key === 'eggshell' ? 'Eggshell Powder' : (INGREDIENTS_DB[key]?.label || key)}
+        </span>
+        <span className="text-sm font-bold text-emerald-400">
+          {(value as number).toFixed(1)}g
+        </span>
+      </div>
+    );
+  })}
 </div>
+
             
             
 
