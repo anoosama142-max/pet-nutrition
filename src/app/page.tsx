@@ -212,7 +212,7 @@ export default function PetNutritionMaster() {
               <div className="mt-6 p-4 bg-slate-800 rounded-lg">
   <h2 className="text-xl font-bold mb-4">Clinical Recipe (Grams)</h2>
   {Object.entries(recipe).map(([key, value]: any) => (
-    <<div key={key} className="flex justify-between py-2 px-4 my-1 bg-slate-800 rounded-md">
+    <div key={key} className="flex justify-between py-2 px-4 my-1 bg-slate-800 rounded-md">
       <span>
         {key === 'eggshell' ? 'Eggshell Powder' : (INGREDIENTS_DB[key]?.label || key)}
       </span>
