@@ -31,7 +31,8 @@ const INGREDIENTS_DB: any = {
   zucchini: { label: "Fresh Zucchini", protein: 1.2, fat: 0.2, kcal: 17, p: 0.03, ca: 0.016 },
   carrot: { label: "Grated Carrot", protein: 0.9, fat: 0.2, kcal: 41, p: 0.03, ca: 0.033 },
   spinach: { label: "Steamed Spinach", protein: 2.9, fat: 0.4, kcal: 23, p: 0.04, ca: 0.09 },
-  oil: { label: "Premium Fish Oil", protein: 0, fat: 100, kcal: 900, p: 0, ca: 0 }, 
+  oil: { label: "Premium Fish Oil", protein: 0, fat: 100, kcal: 900, p: 0, ca: 0 },  
+  eggshell: { label: "Eggshell Powder", protein: 0, fat: 0, kcal: 0, p: 0, ca: 38 }, 
 };
 
 export default function PetNutritionMaster() {
@@ -74,16 +75,14 @@ export default function PetNutritionMaster() {
       none: { protein: 1, fat: 1, p: 1, ca: 1 }, 
       kidney: { protein: 0.75, fat: 1.2, p: 0.45, ca: 0.9 }, 
       obesity: { protein: 1.2, fat: 0.6, p: 1, ca: 1 },    
-    };
-    const rule = diseaseRules[form.disease] || diseaseRules.none;
-
+    // 1.
     const base = mer / form.selectedIngredients.length;
     let optimized: any = {};
     form.selectedIngredients.forEach((ing: string) => {
       optimized[ing] = base / (INGREDIENTS_DB[ing].kcal / 100);
     });
 
-    // calculate finals totals
+    // 2.
     let tProt = 0, tFat = 0, tP = 0, tCa = 0;
     Object.entries(optimized).forEach(([ing, qty]: any) => {
       tProt += (INGREDIENTS_DB[ing].protein * qty) / 100;
@@ -92,10 +91,48 @@ export default function PetNutritionMaster() {
       tCa += (INGREDIENTS_DB[ing].ca * qty) / 100;
     });
 
-    setResult({ mer, water: mer });
-    setRecipe(optimized);
-    setTotals({ protein: tProt * rule.protein, fat: tFat * rule.fat, p: tP * rule.p, ca: tCa * rule.ca });
-  };
+    // 3. 
+    const requiredEggshell = (tP > tCa) ? (tP - tCa) / 0.38 : 0;
+
+    // 4.
+    setRecipe({ ...optimized, eggshell: requiredEggshell });
+    setTotals({ 
+      protein: tProt * rule.protein, 
+      fat: tFat * rule.fat, 
+      p: tP * rule.p, 
+      ca: (tCa + (requiredEggshell * 0.38)) * rule.ca 
+    });
+
+    
+    const rule = diseaseRules[form.disease] || diseaseRules.none;
+
+    const base = mer / form.selectedIngredients.length;
+    let optimized: any = {};
+    form.selectedIngredients.forEach((ing: string) => {
+      optimized[ing] = base / (INGREDIENTS_DB[ing].kcal / 100);
+    });
+
+    
+        // calculate final totals
+        let tProt = 0, tFat = 0, tP = 0, tCa = 0;
+        Object.entries(optimized).forEach(([ing, qty]: any) => {
+          tProt += (INGREDIENTS_DB[ing].protein * qty) / 100;
+          tFat += (INGREDIENTS_DB[ing].fat * qty) / 100;
+          tP += (INGREDIENTS_DB[ing].p * qty) / 100;
+          tCa += (INGREDIENTS_DB[ing].ca * qty) / 100;
+        });
+
+        // Calculate required Eggshell to balance Calcium
+        const requiredEggshell = (tP > tCa) ? (tP - tCa) / 0.38 : 0;
+
+        setResult({ mer, water: mer });
+        setRecipe({ ...optimized, eggshell: requiredEggshell });
+        setTotals({ 
+          protein: tProt * rule.protein, 
+          fat: tFat * rule.fat, 
+          p: tP * rule.p, 
+          ca: (tCa + (requiredEggshell * 0.38)) * rule.ca 
+        });
 
   const toggleIngredient = (ing: string) => {
     setForm(prev => ({
