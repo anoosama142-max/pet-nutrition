@@ -101,7 +101,7 @@ export default function PetNutritionMaster() {
     const requiredEggshell = (tP > tCa) ? (tP - tCa) / 0.38 : 0;
 
     // 4.
-    setResult({ mer, water: mer }); // ضفت سطر الـ Result عشان يكمل الـ UI
+    setResult({ mer, water: mer }); //
     setRecipe({ ...optimized, eggshell: requiredEggshell });
     setTotals({ 
       protein: tProt * rule.protein, 
