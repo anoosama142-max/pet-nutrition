@@ -71,11 +71,17 @@ export default function PetNutritionMaster() {
 
   const handleCalculate = () => {
     const mer = calculateFEDIAF();
+    
+    // 
     const diseaseRules: any = { 
       none: { protein: 1, fat: 1, p: 1, ca: 1 }, 
       kidney: { protein: 0.75, fat: 1.2, p: 0.45, ca: 0.9 }, 
-      obesity: { protein: 1.2, fat: 0.6, p: 1, ca: 1 },    
-    // 1.
+      obesity: { protein: 1.2, fat: 0.6, p: 1, ca: 1 }    
+    };
+    
+    const rule = diseaseRules[form.disease] || diseaseRules.none;
+
+    // 1. 
     const base = mer / form.selectedIngredients.length;
     let optimized: any = {};
     form.selectedIngredients.forEach((ing: string) => {
@@ -91,10 +97,11 @@ export default function PetNutritionMaster() {
       tCa += (INGREDIENTS_DB[ing].ca * qty) / 100;
     });
 
-    // 3. 
+    // 3.
     const requiredEggshell = (tP > tCa) ? (tP - tCa) / 0.38 : 0;
 
     // 4.
+    setResult({ mer, water: mer }); // ضفت سطر الـ Result عشان يكمل الـ UI
     setRecipe({ ...optimized, eggshell: requiredEggshell });
     setTotals({ 
       protein: tProt * rule.protein, 
@@ -103,14 +110,8 @@ export default function PetNutritionMaster() {
       ca: (tCa + (requiredEggshell * 0.38)) * rule.ca 
     });
 
-    
-    const rule = diseaseRules[form.disease] || diseaseRules.none;
+  
 
-    const base = mer / form.selectedIngredients.length;
-    let optimized: any = {};
-    form.selectedIngredients.forEach((ing: string) => {
-      optimized[ing] = base / (INGREDIENTS_DB[ing].kcal / 100);
-    });
 
     
         // calculate final totals
